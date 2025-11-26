@@ -8,11 +8,13 @@ fn main() {
     let manager_ref = oxidd::tdd::new_manager(1024, 1024, 1);
     let (x1, x2, x3, x4) = manager_ref.with_manager_exclusive(|manager| {
         (
-            TDDFunction::new_var(manager).unwrap(),
-            TDDFunction::new_var(manager).unwrap(),
-            TDDFunction::new_var(manager).unwrap(),
-            TDDFunction::new_var(manager).unwrap(),
-        )
+        manager.add_named_vars(["x", "y", "z", "u"]).unwrap();
+        Ok((
+            TDDFunction::var(manager,0).unwrap()?,
+            TDDFunction::var(manager,1).unwrap()?,
+            TDDFunction::var(manager,2).unwrap()?,
+            TDDFunction::var(manager,3).unwrap()?,)
+        )?)
     });
 
     manager_ref.with_manager_shared(|manager| {
