@@ -23,9 +23,12 @@ fn main() -> AllocResult<()> {
         let mt1 = a.and(&c)?;
         let mt2 = a.and(&d)?;
         let mt3 = b.and(&c)?.and(&d)?;
-        let maj2 = mt0.or(&mt1)?.or(&mt2)?.or(&mt3)?;
+        // let maj2 = mt0.or(&mt1)?.or(&mt2)?.or(&mt3)?;
+        let maj2 = a.and(&b)?.or(&d)?;
 
+        oxidd::tdd::print_stats();
         manager.gc();
+        oxidd::tdd::print_stats();
 
         let file = std::fs::File::create("maj2.dot").expect("could not create `maj2.dot`");
         dump_all(file, manager, [(&maj2, "maj2")]).expect("dot export failed");

@@ -55,6 +55,7 @@ default = [
   "dddmp",
   "dot-export",
   "visualize",
+  "statistics",
 ]
 
 ## Enable the simple BDD implementation
