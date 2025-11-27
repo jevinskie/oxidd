@@ -1,5 +1,7 @@
 [workspace]
 members = ["crates/*"]
+# JEVHACK to fix build on my mac
+exclude = ["crates/oxidd-ffi-python"]
 resolver = "2"
 
 [workspace.package]

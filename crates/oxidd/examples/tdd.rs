@@ -8,8 +8,8 @@ use oxidd_dump::dot::dump_all;
 
 fn main() -> AllocResult<()> {
     let manager_ref = new_manager(1024, 1024, 1);
-    let [x1, x2, x3, x4] = manager_ref.with_manager_exclusive(|manager| {
-        manager.add_named_vars(["x", "y", "z", "u"]).unwrap();
+    let [a, b, c, d] = manager_ref.with_manager_exclusive(|manager| {
+        manager.add_named_vars(["a", "b", "c", "d"]).unwrap();
         Ok([
             TDDFunction::var(manager, 0)?,
             TDDFunction::var(manager, 1)?,
@@ -19,12 +19,16 @@ fn main() -> AllocResult<()> {
     })?;
 
     manager_ref.with_manager_shared(|manager| {
-        let res = x1.and(&x2).unwrap().or(&x4).unwrap();
+        let mt0 = a.and(&b)?;
+        let mt1 = a.and(&c)?;
+        let mt2 = a.and(&d)?;
+        let mt3 = b.and(&c)?.and(&d)?;
+        let maj2 = mt0.or(&mt1)?.or(&mt2)?.or(&mt3)?;
 
         manager.gc();
 
-        let file = std::fs::File::create("tdd.dot").expect("could not create `tdd.dot`");
-        dump_all(file, manager, [(&res, "(x1 ∧ x2) ∨ x4")]).expect("dot export failed");
+        let file = std::fs::File::create("maj2.dot").expect("could not create `maj2.dot`");
+        dump_all(file, manager, [(&maj2, "maj2")]).expect("dot export failed");
         Ok(())
     })
 }
