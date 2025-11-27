@@ -36,6 +36,12 @@ pub struct Color(pub u8, pub u8, pub u8);
 impl Color {
     #[allow(missing_docs)]
     pub const BLACK: Self = Color(0, 0, 0);
+    #[allow(missing_docs)]
+    pub const RED: Self = Color(224, 92, 133);
+    #[allow(missing_docs)]
+    pub const GREEN: Self = Color(133, 224, 92);
+    #[allow(missing_docs)]
+    pub const BLUE: Self = Color(92, 133, 224);
 }
 
 impl fmt::Display for Color {
