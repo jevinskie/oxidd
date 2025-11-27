@@ -447,13 +447,13 @@ impl<F: Function, T: Tag> DotStyle<T> for TDDFunction<F> {
                 oxidd_dump::dot::EdgeStyle::Dashed
             },
             false,
-             if no == 0 {
+            if no == 0 {
                 oxidd_dump::dot::Color::GREEN
             } else if no == 1 {
                 oxidd_dump::dot::Color::RED
             } else {
                 oxidd_dump::dot::Color::BLUE
-            }
+            },
         )
     }
 }
