@@ -34,6 +34,7 @@ use rustc_hash::FxHashMap;
 pub mod aiger;
 pub mod dimacs;
 pub mod nnf;
+pub mod pla;
 mod tv_bitvec;
 mod util;
 mod vec2d;

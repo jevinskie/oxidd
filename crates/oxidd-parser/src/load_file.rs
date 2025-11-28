@@ -15,7 +15,7 @@ use nom::{Offset, Parser};
 
 use crate::ParseOptions;
 use crate::Problem;
-use crate::{aiger, dimacs, nnf};
+use crate::{aiger, dimacs, nnf, pla};
 
 /// File types
 ///
@@ -36,6 +36,10 @@ pub enum FileType {
     ///
     /// Extensions: `.aag`, `.aig`
     AIGER,
+    /// PLA
+    ///
+    /// Extensions: `.pla`
+    PLA,
 }
 
 impl FileType {
@@ -46,6 +50,7 @@ impl FileType {
             b"cnf" | b"sat" | b"dimacs" => Some(FileType::DIMACS),
             b"nnf" => Some(FileType::NNF),
             b"aag" | b"aig" => Some(FileType::AIGER),
+            b"pla" => Some(FileType::PLA),
             _ => None,
         }
     }
@@ -113,6 +118,7 @@ pub fn parse<S: AsRef<str> + Clone + fmt::Display>(
         FileType::DIMACS => dimacs::parse::<ParserReport<_>>(parse_options).parse(input),
         FileType::NNF => nnf::parse::<ParserReport<_>>(parse_options).parse(input),
         FileType::AIGER => aiger::parse::<ParserReport<_>>(parse_options).parse(input),
+        FileType::PLA => pla::parse::<ParserReport<_>>(parse_options).parse(input),
     };
     let errors = match parse_result {
         Ok((rest, problem)) => {
