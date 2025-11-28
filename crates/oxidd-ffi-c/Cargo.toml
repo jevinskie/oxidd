@@ -34,7 +34,7 @@ rustc-hash = "2.1"
 libc = "0.2.177"
 
 [build-dependencies]
-cc = { version = "1.2.47", optional = true }
+cc = { version = "1.2.48", optional = true }
 
 
 [features]
