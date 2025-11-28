@@ -26,7 +26,7 @@ use nom::combinator::{consumed, cut, eof, value};
 use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
 use nom::multi::many0_count;
 use nom::sequence::{preceded, terminated};
-use nom::{Err, IResult};
+use nom::{Err, IResult, Parser};
 
 use crate::util::{
     self, context_loc, eol, fail, fail_with_contexts, line_span, word, word_span, MAX_CAPACITY,
@@ -66,7 +66,8 @@ fn format<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
         || word_span(input),
         "format must be one of 'cnf', 'sat', 'satx', 'sate', or 'satex'",
         word(inner),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parses a problem line, i.e., `p cnf <#vars> <#clauses>` or
@@ -81,31 +82,34 @@ fn problem_line<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
         let (input, _) = context(
             "all lines in the preamble must begin with 'c' or 'p'",
             cut(char('p')),
-        )(input)?;
+        )
+        .parse(input)?;
         let (input, _) = space1(input)?;
-        let (input, fmt) = consumed(format)(input)?;
+        let (input, fmt) = consumed(format).parse(input)?;
         let (input, _) = space1(input)?;
-        let (input, num_vars) = consumed(u64)(input)?;
+        let (input, num_vars) = consumed(u64).parse(input)?;
         if num_vars.1 > MAX_CAPACITY {
             return fail(num_vars.0, "too many variables");
         }
         let num_vars = (num_vars.0, num_vars.1 as usize);
         if fmt.1 == Format::CNF {
             let msg = "expected the number of clauses (CNF format)";
-            let (input, _) = context(msg, space1)(input)?;
-            let (input, num_clauses) = context_loc(|| word_span(input), msg, consumed(u64))(input)?;
+            let (input, _) = context(msg, space1).parse(input)?;
+            let (input, num_clauses) =
+                context_loc(|| word_span(input), msg, consumed(u64)).parse(input)?;
             if num_clauses.1 > MAX_CAPACITY {
                 return fail(num_clauses.0, "too many clauses");
             }
             let num_clauses = (num_clauses.0, num_clauses.1 as usize);
             let (input, _) = space0(input)?;
-            value((fmt, num_vars, num_clauses), line_ending)(input)
+            value((fmt, num_vars, num_clauses), line_ending).parse(input)
         } else {
             let (input, _) = space0(input)?;
             context(
                 "expected a line break (SAT formats do not take a number of clauses)",
                 value((fmt, num_vars, ([].as_slice(), 0)), line_ending),
-            )(input)
+            )
+            .parse(input)
         }
     };
 
@@ -113,7 +117,8 @@ fn problem_line<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
         || line_span(input),
         "problem line must have format 'p <format> <#vars> [<#clauses>]'",
         cut(inner),
-    )(input)
+    )
+    .parse(input)
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -161,18 +166,19 @@ where
             let mut max_clause = ([].as_slice(), 0); // dummy value
 
             loop {
-                let next_input = match preceded(char::<_, E>('c'), space1)(input) {
+                let next_input = match preceded(char::<_, E>('c'), space1).parse(input) {
                     Ok((i, _)) => i,
                     Err(_) => break,
                 };
-                if let Ok((next_input, _)) = preceded(tag("co"), space1::<_, E>)(next_input) {
+                if let Ok((next_input, _)) = preceded(tag("co"), space1::<_, E>).parse(next_input) {
                     if parse_clause_tree {
                         if clause_tree.is_some() {
                             return fail(line_span(input), "clause order may only be given once");
                         }
                         let t: Tree<usize>;
                         (input, (clause_order_span, (t, max_clause))) =
-                            terminated(consumed(util::tree(false, false)), eol)(next_input)?;
+                            terminated(consumed(util::tree(false, false)), eol)
+                                .parse(next_input)?;
                         clause_tree = Some(t);
                     } else {
                         input = match memchr::memchr(b'\n', input) {
@@ -180,7 +186,8 @@ where
                             None => &input[input.len()..],
                         };
                     }
-                } else if let Ok((next_input, _)) = preceded(tag("vo"), space1::<_, E>)(next_input)
+                } else if let Ok((next_input, _)) =
+                    preceded(tag("vo"), space1::<_, E>).parse(next_input)
                 {
                     // variable order tree
                     if vars.order_tree.is_some() {
@@ -189,7 +196,7 @@ where
                     }
                     let t: Tree<Var>;
                     (input, (t, tree_max_var)) =
-                        terminated(util::tree(true, true), eol)(next_input)?;
+                        terminated(util::tree(true, true), eol).parse(next_input)?;
 
                     // The variable order tree takes precedence (and determines the linear order)
                     vars.order.clear();
@@ -312,7 +319,7 @@ where
             Ok((next_input, preamble))
         } else {
             let (input, (format, num_vars, num_clauses)) =
-                preceded(many0_count(util::comment), problem_line)(input)?;
+                preceded(many0_count(util::comment), problem_line).parse(input)?;
             let preamble = Preamble {
                 format: format.1,
                 vars: VarSet::new(num_vars.1),
@@ -330,7 +337,7 @@ mod cnf {
     use nom::combinator::{consumed, eof, iterator, map, recognize};
     use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
     use nom::sequence::preceded;
-    use nom::{Err, IResult};
+    use nom::{Err, IResult, Parser};
 
     use crate::util::fail;
     use crate::{Circuit, GateKind, Literal, Problem, Tree};
@@ -368,7 +375,7 @@ mod cnf {
             }),
         ));
 
-        preceded(multispace0, tok)(input)
+        preceded(multispace0, tok).parse(input)
     }
 
     fn make_conj_tree(
@@ -440,7 +447,7 @@ mod cnf {
 
             let (input, ()) = it.finish()?;
             let (input, _) = multispace0(input)?;
-            let (input, _) = context("expected a literal or '0'", eof)(input)?;
+            let (input, _) = context("expected a literal or '0'", eof).parse(input)?;
 
             let num_gates = circuit.num_gates();
             if num_gates != num_clauses {
@@ -515,8 +522,7 @@ mod sat {
     use nom::character::complete::{char, multispace0, u64};
     use nom::combinator::{consumed, map, recognize, value};
     use nom::error::{ContextError, ErrorKind, ParseError};
-    use nom::Err;
-    use nom::IResult;
+    use nom::{Err, IResult, Parser};
 
     use crate::util::{fail, map_res_fail, word};
     use crate::{Circuit, GateKind, Literal, Problem, ProblemDetails, Var, VarSet};
@@ -576,7 +582,8 @@ mod sat {
                 match_tok!(char('+'), Or),
                 match_tok!(word(tag("xor")), Xor),
                 match_tok!(char('='), Eq),
-            ))(input)
+            ))
+            .parse(input)
         }
     }
 
@@ -612,7 +619,7 @@ mod sat {
         num_vars: usize,
     ) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], (), E> {
         move |input| {
-            let (input, tok) = lex(num_vars)(input)?;
+            let (input, tok) = lex(num_vars).parse(input)?;
             match tok {
                 None => fail(input, err),
                 Some(tok) if tok.kind != kind => fail(tok.span, err),
@@ -629,7 +636,7 @@ mod sat {
         input: &'a [u8],
     ) -> IResult<&'a [u8], Literal, SatParserErr<'a, E>> {
         let num_vars = circuit.inputs().len();
-        let (input, tok) = lex(num_vars)(input)?;
+        let (input, tok) = lex(num_vars).parse(input)?;
         let tok = match tok {
             Some(tok) => tok,
             None => return fail(input, "expected a formula"),
@@ -639,14 +646,14 @@ mod sat {
             TokenKind::Var(n) => Ok((input, Literal::from_input(false, n - 1))),
             TokenKind::Lpar => {
                 let (input, l) = formula(allow_xor, allow_eq, circuit, stack, input)?;
-                value(l, expect(TokenKind::Rpar, "expected ')'", num_vars))(input)
+                value(l, expect(TokenKind::Rpar, "expected ')'", num_vars)).parse(input)
             }
             TokenKind::Rpar => Err(Err::Error(SatParserErr::Rpar {
                 input,
                 span: tok.span,
             })),
             TokenKind::Neg => {
-                let (input, tok) = lex(num_vars)(input)?;
+                let (input, tok) = lex(num_vars).parse(input)?;
                 let tok = match tok {
                     Some(t) => t,
                     None => return fail(input, "expected a variable or '('"),
@@ -655,7 +662,7 @@ mod sat {
                     TokenKind::Var(n) => Ok((input, Literal::from_input(true, n - 1))),
                     TokenKind::Lpar => {
                         let (input, l) = formula(allow_xor, allow_eq, circuit, stack, input)?;
-                        value(!l, expect(TokenKind::Rpar, "expected ')'", num_vars))(input)
+                        value(!l, expect(TokenKind::Rpar, "expected ')'", num_vars)).parse(input)
                     }
                     _ => fail(tok.span, "expected a variable or '('"),
                 }
@@ -669,7 +676,8 @@ mod sat {
                 "'=' is only allowed in formats 'sate' and 'satex'",
             ),
             _ => {
-                let (mut input, ()) = expect(TokenKind::Lpar, "expected '('", num_vars)(input)?;
+                let (mut input, ()) =
+                    expect(TokenKind::Lpar, "expected '('", num_vars).parse(input)?;
 
                 let saved_stack_len = stack.len();
                 let input = loop {
@@ -746,14 +754,14 @@ mod sat {
 }
 
 /// Parse a DIMACS CNF/SAT file
-pub fn parse<'a, E>(options: &ParseOptions) -> impl Fn(&'a [u8]) -> IResult<&'a [u8], Problem, E>
+pub fn parse<'a, E>(options: &ParseOptions) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Problem, E>
 where
     E: ParseError<&'a [u8]> + ContextError<&'a [u8]> + FromExternalError<&'a [u8], String>,
 {
     let parse_var_order = options.var_order;
     let parse_clause_tree = options.clause_tree;
     move |input| {
-        let (input, preamble) = preamble(parse_var_order, parse_clause_tree)(input)?;
+        let (input, preamble) = preamble(parse_var_order, parse_clause_tree).parse(input)?;
         match preamble.format {
             Format::CNF => cnf::parse(preamble)(input),
             Format::SAT { xor, eq } => {
@@ -761,7 +769,8 @@ where
                 let (input, _) = context(
                     "expected end of file (SAT files may only contain a single formula)",
                     preceded(multispace0, eof),
-                )(input)?;
+                )
+                .parse(input)?;
                 Ok((input, res))
             }
         }
@@ -785,7 +794,8 @@ p cnf 4 3
 1 3 -4 0
 4 0 2
 -3";
-        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)(input.as_bytes())
+        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)
+            .parse(input.as_bytes())
             .finish()
             .unwrap();
         assert!(input.is_empty());
@@ -809,7 +819,8 @@ p cnf 4 3
 1 3 -4 0
 4 0 2
 -3 0";
-        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)(input.as_bytes())
+        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)
+            .parse(input.as_bytes())
             .finish()
             .unwrap();
         assert!(input.is_empty());
@@ -828,7 +839,8 @@ p cnf 4 3
     #[test]
     fn empty_cnf() {
         let input = "p cnf 0 0\n";
-        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)(input.as_bytes())
+        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)
+            .parse(input.as_bytes())
             .finish()
             .unwrap();
         assert!(input.is_empty());
@@ -848,7 +860,8 @@ p sat 4
 (*(+(1 3 -4)
     +(4)
     +(2 3)))";
-        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)(input.as_bytes())
+        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)
+            .parse(input.as_bytes())
             .finish()
             .unwrap();
         assert!(input.is_empty());
@@ -866,7 +879,9 @@ p sat 4
 
     #[test]
     fn preamble_satx() {
-        let (input, preamble) = preamble::<()>(false, false)(b"p satx 1337 \n").unwrap();
+        let (input, preamble) = preamble::<()>(false, false)
+            .parse(b"p satx 1337 \n")
+            .unwrap();
         assert!(input.is_empty());
         assert_eq!(
             preamble,
@@ -881,7 +896,7 @@ p sat 4
 
     #[test]
     fn preamble_sate() {
-        let (input, preamble) = preamble::<()>(false, false)(b"p sate 1\n").unwrap();
+        let (input, preamble) = preamble::<()>(false, false).parse(b"p sate 1\n").unwrap();
         assert!(input.is_empty());
         assert_eq!(
             preamble,
@@ -896,7 +911,9 @@ p sat 4
 
     #[test]
     fn preamble_satex() {
-        let (input, preamble) = preamble::<()>(false, false)(b"p satex 42 \n").unwrap();
+        let (input, preamble) = preamble::<()>(false, false)
+            .parse(b"p satex 42 \n")
+            .unwrap();
         assert!(input.is_empty());
         assert_eq!(
             preamble,

@@ -19,9 +19,9 @@ use oxidd_dump::dot::dump_all;
 
 //     manager_ref.with_manager_shared(|manager| {
 //         let file =
-//             std::fs::File::create("bdd_simple.dot").expect("could not create `bdd_simple.dot`");
-//         dump_all(file, manager, [(&res, "(x and y) or z")]).expect("dot export failed");
-//     });
+//             std::fs::File::create("bdd_simple.dot").expect("could not create
+// `bdd_simple.dot`");         dump_all(file, manager, [(&res, "(x and y) or
+// z")]).expect("dot export failed");     });
 //     Ok(())
 // }
 

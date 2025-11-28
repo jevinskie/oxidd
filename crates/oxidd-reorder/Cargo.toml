@@ -25,7 +25,7 @@ smallvec = { version = "1", features = ["union", "const_generics"] }
 is_sorted = "0.1"
 
 # thread pools, parallel iterators, etc.
-rayon = "1.10"
+rayon = "1.11"
 
 # mpmc channels
 flume = { version = "0.11", default-features = false }

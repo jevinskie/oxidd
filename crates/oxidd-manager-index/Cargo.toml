@@ -25,19 +25,19 @@ linear-hashtbl.workspace = true
 #
 # Note that there is a performance regression with 2.0, see
 # https://github.com/rust-lang/rustc-hash/issues/45
-rustc-hash = "1.1"
+rustc-hash = "2.1"
 
 # bit sets
 fixedbitset = "0.5.7"
 
 # thread pool
-rayon = "1.10"
+rayon = "1.11"
 
 # `CachePadded`
 crossbeam-utils = { version = "0.8", default-features = false }
 
 # standard derive macros but with custom bounds on generics
-derive-where = "1.5"
+derive-where = "1.6"
 
 
 [features]

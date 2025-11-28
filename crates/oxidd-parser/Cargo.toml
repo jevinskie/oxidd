@@ -17,25 +17,25 @@ rust-version.workspace = true
 
 [dependencies]
 # parser combinator
-nom = "7"
+nom = "8"
 
 # byte string utilities
 memchr = "2"
 
 # error reporting
-codespan-reporting = { version = "0.12", optional = true }
+codespan-reporting = { version = "0.13", optional = true }
 
 # bit vectors
 fixedbitset = "0.5.7"
 
 # bump allocator
-bumpalo = { version = "3.16.0", features = ["boxed", "collections"] }
+bumpalo = { version = "3.19.0", features = ["boxed", "collections"] }
 
 # fast hash function
 #
 # Note that there is a performance regression with 2.0, see
 # https://github.com/rust-lang/rustc-hash/issues/45
-rustc-hash = "1.1"
+rustc-hash = "2.1"
 
 # `Builder` derive macro
 derive_builder = "0.20"

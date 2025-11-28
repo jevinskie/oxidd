@@ -22,7 +22,7 @@ document-features = "0.2"
 
 # allocation with madvise for hugepages
 hugealloc = { workspace = true, optional = true }
-allocator-api2 = { version = "0.2", optional = true }
+allocator-api2 = { version = "0.3", optional = true }
 
 [dev-dependencies]
 oxidd-derive.workspace = true
@@ -32,7 +32,7 @@ oxidd-test-utils.workspace = true
 #
 # Note that there is a performance regression with 2.0, see
 # https://github.com/rust-lang/rustc-hash/issues/45
-rustc-hash = "1.1"
+rustc-hash = "2.1"
 
 
 [features]

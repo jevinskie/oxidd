@@ -1,7 +1,6 @@
 //! Parsing helpers
 
 use std::mem::size_of;
-use std::ops::{Range, RangeFrom, RangeTo};
 
 use fixedbitset::FixedBitSet;
 use nom::branch::alt;
@@ -9,10 +8,7 @@ use nom::character::complete::{char, line_ending, not_line_ending, space0, space
 use nom::combinator::{consumed, cut, eof, value};
 use nom::error::{ContextError, ErrorKind, FromExternalError, ParseError};
 use nom::sequence::preceded;
-use nom::{
-    AsBytes, AsChar, Compare, Err, IResult, InputIter, InputLength, InputTakeAtPosition, Parser,
-    Slice,
-};
+use nom::{AsBytes, AsChar, Compare, Err, IResult, Input, Parser};
 
 use crate::Tree;
 
@@ -20,7 +16,7 @@ pub const MAX_CAPACITY: u64 = (usize::MAX / 2 / size_of::<usize>()) as u64;
 
 pub fn usize<I, E>(input: I) -> IResult<I, usize, E>
 where
-    I: InputIter + Slice<RangeFrom<usize>> + Slice<RangeTo<usize>> + InputLength + AsBytes + Clone,
+    I: Input + AsBytes + Clone,
     I::Item: AsChar,
     E: ParseError<I> + ContextError<I>,
 {
@@ -36,10 +32,10 @@ where
 pub fn collect<'a, I, O, E, F>(
     n: usize,
     to: &'a mut Vec<O>,
-    mut parser: F,
+    parser: &'a mut F,
 ) -> impl 'a + FnMut(I) -> IResult<I, (), E>
 where
-    F: 'a + Parser<I, O, E>,
+    F: 'a + Parser<I, Output = O, Error = E>,
 {
     move |mut input| {
         for _ in 0..n {
@@ -55,10 +51,10 @@ pub fn collect_pair<'a, I, O1, O2, E, F>(
     n: usize,
     to1: &'a mut Vec<O1>,
     to2: &'a mut Vec<O2>,
-    mut parser: F,
+    parser: &'a mut F,
 ) -> impl 'a + FnMut(I) -> IResult<I, (), E>
 where
-    F: 'a + Parser<I, (O1, O2), E>,
+    F: 'a + Parser<I, Output = (O1, O2), Error = E>,
 {
     move |mut input| {
         for _ in 0..n {
@@ -74,41 +70,28 @@ where
 /// Optionally space-preceded end of line
 pub fn eol<I, E>(input: I) -> IResult<I, (), E>
 where
-    I: Slice<Range<usize>>
-        + Slice<RangeFrom<usize>>
-        + Slice<RangeTo<usize>>
-        + InputIter
-        + InputLength
-        + InputTakeAtPosition
-        + Compare<&'static str>,
-    <I as InputTakeAtPosition>::Item: AsChar + Clone,
+    I: Input + Compare<&'static str>,
+    I::Item: AsChar + Clone,
     E: ParseError<I>,
 {
-    preceded(space0, value((), line_ending))(input)
+    preceded(space0, value((), line_ending)).parse(input)
 }
 
 /// Optionally space-preceded end of line or file
 pub fn eol_or_eof<I, E>(input: I) -> IResult<I, (), E>
 where
-    I: Slice<Range<usize>>
-        + Slice<RangeFrom<usize>>
-        + Slice<RangeTo<usize>>
-        + InputIter
-        + InputLength
-        + InputTakeAtPosition
-        + Compare<&'static str>
-        + Clone,
-    <I as InputTakeAtPosition>::Item: AsChar + Clone,
+    I: Input + Compare<&'static str> + Clone,
+    I::Item: AsChar + Clone,
     E: ParseError<I>,
 {
-    preceded(space0, value((), alt((line_ending, eof))))(input)
+    preceded(space0, value((), alt((line_ending, eof)))).parse(input)
 }
 
 pub fn word<I, O, E, F>(mut parser: F) -> impl FnMut(I) -> IResult<I, O, E>
 where
-    I: Clone + Slice<RangeTo<usize>> + AsBytes,
+    I: Clone + AsBytes + Input,
     E: ParseError<I>,
-    F: Parser<I, O, E>,
+    F: Parser<I, Output = O, Error = E>,
 {
     move |i1| {
         let (i2, o) = parser.parse(i1.clone())?;
@@ -120,11 +103,11 @@ where
     }
 }
 
-pub fn word_span<I: Slice<RangeTo<usize>> + AsBytes>(input: I) -> I {
+pub fn word_span<I: Input + AsBytes>(input: I) -> I {
     let bytes = input.as_bytes();
     for (i, &b) in bytes.iter().enumerate() {
         match b {
-            b' ' | b'\t' | b'\n' | b'\r' => return input.slice(..i),
+            b' ' | b'\t' | b'\n' | b'\r' => return input.take(i),
             _ => {}
         }
     }
@@ -132,9 +115,9 @@ pub fn word_span<I: Slice<RangeTo<usize>> + AsBytes>(input: I) -> I {
 }
 
 #[inline]
-pub fn line_span<I: Slice<RangeTo<usize>> + AsBytes>(input: I) -> I {
+pub fn line_span<I: Input + AsBytes>(input: I) -> I {
     match memchr::memchr2(b'\n', b'\r', input.as_bytes()) {
-        Some(i) => input.slice(..i),
+        Some(i) => input.take(i),
         None => input,
     }
 }
@@ -146,7 +129,7 @@ pub fn context_loc<I, E, F, O>(
 ) -> impl FnMut(I) -> IResult<I, O, E>
 where
     E: ContextError<I>,
-    F: Parser<I, O, E>,
+    F: Parser<I, Output = O, Error = E>,
 {
     move |input| match f.parse(input) {
         Ok(o) => Ok(o),
@@ -188,7 +171,7 @@ pub fn map_res_fail<I: Clone, O1, O2, E: ParseError<I> + ContextError<I>, F, G>(
     mut f: G,
 ) -> impl FnMut(I) -> IResult<I, O2, E>
 where
-    F: Parser<I, O1, E>,
+    F: Parser<I, Output = O1, Error = E>,
     G: FnMut(O1) -> Result<O2, (I, &'static str)>,
 {
     move |input: I| {
@@ -231,7 +214,7 @@ pub const fn trim(s: &[u8]) -> &[u8] {
 // A comment line starting with 'c'. Consumes everything until the next '\n'
 // (inclusive).
 pub fn comment<'a, E: ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8], (), E> {
-    let input = char('c')(input)?.0;
+    let input = char('c').parse(input)?.0;
     let input = match memchr::memchr(b'\n', input) {
         Some(i) => &input[i + 1..],
         None => &input[input.len()..],
@@ -242,7 +225,7 @@ pub fn comment<'a, E: ParseError<&'a [u8]>>(input: &'a [u8]) -> IResult<&'a [u8]
 pub fn var_order_record<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
     input: &'a [u8],
 ) -> IResult<&'a [u8], ((&'a [u8], u64), Option<&'a [u8]>), E> {
-    let (input_before_name, (var_span, var)) = consumed(u64)(input)?;
+    let (input_before_name, (var_span, var)) = consumed(u64).parse(input)?;
     let (input, name) = not_line_ending(input_before_name)?;
     let (input, _) = line_ending(input)?;
     let trimmed_name = trim(name);
@@ -283,7 +266,7 @@ where
     ) -> IResult<&'a [u8], (Tree<usize>, (&'a [u8], usize)), E> {
         debug_assert!(space1::<_, E>(input).is_err());
 
-        if let Ok((input, (span, n))) = consumed(u64::<_, E>)(input) {
+        if let Ok((input, (span, n))) = consumed(u64::<_, E>).parse(input) {
             let (input, _) = space0(input)?;
 
             if n > MAX_CAPACITY {
@@ -303,7 +286,7 @@ where
             return Ok((input, (Tree::Leaf(n), (span, n))));
         }
 
-        if let Ok((mut input, _)) = char::<_, E>('[')(input) {
+        if let Ok((mut input, _)) = char::<_, E>('[').parse(input) {
             (input, _) = space0(input)?;
             let buffer_pos = buffer.len();
             let mut max_span = [].as_slice();
@@ -353,7 +336,8 @@ where
                 one_based,
                 unique_leaves,
             )
-        }))(input)?;
+        }))
+        .parse(input)?;
         if let Some(n) = inserted.zeroes().next() {
             return Err(Err::Failure(E::from_external_error(
                 span,
@@ -400,7 +384,7 @@ pub(crate) mod test {
     #[test]
     fn tree_simple() {
         use Tree::*;
-        let (input, (t, max)) = tree::<()>(false, true)(b"[0, [2, 3, 1]]").unwrap();
+        let (input, (t, max)) = tree::<()>(false, true).parse(b"[0, [2, 3, 1]]").unwrap();
         assert!(input.is_empty());
         assert_eq!(
             t,
@@ -415,7 +399,9 @@ pub(crate) mod test {
     #[test]
     fn tree_one_based() {
         use Tree::*;
-        let (input, (t, max)) = tree::<()>(true, true)(b"[[2, 3, 4], [[1], 5]]").unwrap();
+        let (input, (t, max)) = tree::<()>(true, true)
+            .parse(b"[[2, 3, 4], [[1], 5]]")
+            .unwrap();
         assert!(input.is_empty());
         assert_eq!(
             t,
@@ -430,11 +416,11 @@ pub(crate) mod test {
     #[test]
     fn tree_err() {
         // violates leaf uniqueness
-        assert!(tree::<()>(false, true)(b"[0, 0]").is_err());
-        assert!(tree::<()>(false, false)(b"[0, 0]").is_ok());
+        assert!(tree::<()>(false, true).parse(b"[0, 0]").is_err());
+        assert!(tree::<()>(false, false).parse(b"[0, 0]").is_ok());
         // violates "no holes"
-        assert!(tree::<()>(false, false)(b"[1]").is_err());
+        assert!(tree::<()>(false, false).parse(b"[1]").is_err());
         // 0 in 1-based
-        assert!(tree::<()>(true, false)(b"[0]").is_err());
+        assert!(tree::<()>(true, false).parse(b"[0]").is_err());
     }
 }

@@ -11,7 +11,7 @@ use nom::character::complete::space1;
 use nom::combinator::{consumed, eof, map, rest, value};
 use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::sequence::{preceded, terminated};
-use nom::IResult;
+use nom::{IResult, Parser};
 
 use crate::tv_bitvec::TVBitVec;
 use crate::util::{
@@ -63,7 +63,8 @@ where
         || word_span(input),
         "expected 'aag' (ASCII) or 'aig' (binary)",
         word(alt((value(false, tag("aag")), value(true, tag("aig"))))),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn header<'a, E>(input: &'a [u8]) -> IResult<&'a [u8], Header<'a>, E>
@@ -71,11 +72,11 @@ where
     E: ParseError<&'a [u8]> + ContextError<&'a [u8]> + FromExternalError<&'a [u8], String>,
 {
     let inner = |input| {
-        let (mut input, binary) = consumed(format)(input)?;
+        let (mut input, binary) = consumed(format).parse(input)?;
         let mandatory = 5; // M I L O A
         let mut numbers: [(&[u8], usize); 9] = [(&[], 0); 9]; // M I L O A B C J F
         for (parsed, num) in numbers.iter_mut().enumerate() {
-            (input, *num) = match preceded(space1, consumed(usize))(input) {
+            (input, *num) = match preceded(space1, consumed(usize)).parse(input) {
                 Ok(p) => p,
                 Err(e) if parsed < mandatory => return Err(e),
                 Err(_) => break,
@@ -115,7 +116,7 @@ where
         || line_span(input),
         "header line must have format 'aag|aig <#vars> <#inputs> <#latches> <#outputs> <#AND gates> [<#bad> [<#invariant constraints> [<#justice> [<#fairness>]]]]'",
         inner,
-    )(input)
+    ).parse(input)
 }
 
 mod ascii {
@@ -124,7 +125,7 @@ mod ascii {
     use nom::combinator::{consumed, eof, opt};
     use nom::error::{ContextError, ParseError};
     use nom::sequence::preceded;
-    use nom::IResult;
+    use nom::{IResult, Parser};
 
     use crate::util::{eol_or_eof, fail, fail_with_contexts, trim_end};
     use crate::{AIGERDetails, VarSet};
@@ -141,7 +142,7 @@ mod ascii {
         const MSG1: &str = "note: maximal variable number given here";
 
         move |input| {
-            let (input, (span, lit)) = consumed(u64)(input)?;
+            let (input, (span, lit)) = consumed(u64).parse(input)?;
             if lit / 2 > vars.1 as u64 {
                 return fail_with_contexts([(span, MSG0), (vars.0, MSG1)]);
             }
@@ -156,7 +157,7 @@ mod ascii {
         E: ParseError<&'a [u8]> + ContextError<&'a [u8]>,
     {
         move |input| {
-            let (input, lit) = literal(vars)(input)?;
+            let (input, lit) = literal(vars).parse(input)?;
             if lit.1.negative() {
                 return fail(
                     lit.0,
@@ -178,7 +179,7 @@ mod ascii {
         const MSG: &str = "initial value must be 0, 1, or the latch literal itself";
 
         move |input| {
-            let (input, init) = opt(preceded(space1, consumed(u64)))(input)?;
+            let (input, init) = opt(preceded(space1, consumed(u64))).parse(input)?;
             let init = match init {
                 None | Some((_, 0)) => Some(false),
                 Some((_, 1)) => Some(true),
@@ -202,9 +203,9 @@ mod ascii {
         E: ParseError<&'a [u8]> + ContextError<&'a [u8]>,
     {
         move |input| {
-            let (input, lit) = literal(vars)(input)?;
+            let (input, lit) = literal(vars).parse(input)?;
             let (input, _) = space1(input)?;
-            let (input, inp) = literal(vars)(input)?;
+            let (input, inp) = literal(vars).parse(input)?;
 
             if lit.1.negative() {
                 return fail(
@@ -213,7 +214,7 @@ mod ascii {
                 );
             }
 
-            let (input, init) = latch_init_ext(lit.1)(input)?;
+            let (input, init) = latch_init_ext(lit.1).parse(input)?;
             let (input, _) = eol_or_eof(input)?;
             Ok((input, (lit, inp, init)))
         }
@@ -274,7 +275,7 @@ mod ascii {
                     _ => break,
                 };
 
-                let (inp, (span, i)) = consumed(u64)(inp)?;
+                let (inp, (span, i)) = consumed(u64).parse(inp)?;
                 let (count_span, mut count) = counts[kind];
                 if i >= count as u64 {
                     return fail_with_contexts([(span, MSGS[kind].0), (count_span, MSGS[kind].1)]);
@@ -291,7 +292,7 @@ mod ascii {
 
                 let (inp, _) = space1(inp)?;
                 let (inp, name) = not_line_ending(inp)?;
-                (input, _) = alt((line_ending, eof))(inp)?;
+                (input, _) = alt((line_ending, eof)).parse(inp)?;
 
                 let symbol_list = &mut symbols[kind];
                 if symbol_list.is_empty() {
@@ -391,8 +392,9 @@ where
 
             // latches
             for i in 0..h.latches.1 {
-                let (inp, (_, lit)) = ascii::literal(h.vars)(input)?;
-                let (inp, init) = ascii::latch_init_ext(AIGLiteral(i + first_latch * 2))(inp)?;
+                let (inp, (_, lit)) = ascii::literal(h.vars).parse(input)?;
+                let (inp, init) =
+                    ascii::latch_init_ext(AIGLiteral(i + first_latch * 2)).parse(inp)?;
                 input = eol_or_eof(inp)?.0;
                 aig.latches.push(make_literal(lit));
                 aig.latch_init_values.push(init);
@@ -403,20 +405,32 @@ where
                 terminated(ascii::literal(h.vars), eol_or_eof),
                 move |(_, l)| make_literal(l),
             );
-            input = collect(h.out.1, &mut aig.outputs, &mut literal)(input)?.0;
-            input = collect(h.bad.1, &mut aig.bad, &mut literal)(input)?.0;
-            input = collect(h.inv.1, &mut aig.invariants, &mut literal)(input)?.0;
-            input = collect(h.just.1, &mut justice_len, terminated(usize, eol_or_eof))(input)?.0;
+            input = collect(h.out.1, &mut aig.outputs, &mut literal)
+                .parse(input)?
+                .0;
+            input = collect(h.bad.1, &mut aig.bad, &mut literal).parse(input)?.0;
+            input = collect(h.inv.1, &mut aig.invariants, &mut literal)
+                .parse(input)?
+                .0;
+            input = collect(
+                h.just.1,
+                &mut justice_len,
+                &mut terminated(usize, eol_or_eof),
+            )
+            .parse(input)?
+            .0;
             aig.justice.reserve_elements(justice_len.iter().sum());
             for &n in &justice_len {
                 aig.justice.push_vec();
                 for _ in 0..n {
-                    let (inp, (_, lit)) = ascii::literal(h.vars)(input)?;
+                    let (inp, (_, lit)) = ascii::literal(h.vars).parse(input)?;
                     (input, _) = eol_or_eof(inp)?;
                     aig.justice.push_element(make_literal(lit));
                 }
             }
-            input = collect(h.fair.1, &mut aig.fairness, &mut literal)(input)?.0;
+            input = collect(h.fair.1, &mut aig.fairness, &mut literal)
+                .parse(input)?
+                .0;
 
             // and gates
             let and_gate_eof_err = fail(
@@ -457,7 +471,7 @@ where
             // inputs
             const SECOND_DEF_MSG: &str = "second variable definition";
             for i in first_input..first_latch {
-                let (inp, (span, lit)) = ascii::input_line(h.vars)(input)?;
+                let (inp, (span, lit)) = ascii::input_line(h.vars).parse(input)?;
                 let var = lit.variable();
                 if aig.map[var] != Literal::UNDEF {
                     return fail(span, SECOND_DEF_MSG);
@@ -469,7 +483,7 @@ where
             // latches
             let mut latch_input_spans = Vec::with_capacity(h.latches.1);
             for i in first_latch..first_and_gate {
-                let tmp = ascii::latch_line(h.vars)(input)?;
+                let tmp = ascii::latch_line(h.vars).parse(input)?;
                 input = tmp.0;
                 let ((lit_span, lit), (inp_span, inp), init) = tmp.1;
                 let var = lit.variable();
@@ -490,11 +504,22 @@ where
                 terminated(ascii::literal(h.vars), eol_or_eof),
                 move |(s, l)| (s, Literal(l.0)),
             );
-            input = collect_pair(h.out.1, &mut out_spans, &mut aig.outputs, &mut literal)(input)?.0;
-            input = collect_pair(h.bad.1, &mut bad_spans, &mut aig.bad, &mut literal)(input)?.0;
-            input =
-                collect_pair(h.inv.1, &mut inv_spans, &mut aig.invariants, &mut literal)(input)?.0;
-            input = collect(h.just.1, &mut justice_len, terminated(usize, eol_or_eof))(input)?.0;
+            input = collect_pair(h.out.1, &mut out_spans, &mut aig.outputs, &mut literal)
+                .parse(input)?
+                .0;
+            input = collect_pair(h.bad.1, &mut bad_spans, &mut aig.bad, &mut literal)
+                .parse(input)?
+                .0;
+            input = collect_pair(h.inv.1, &mut inv_spans, &mut aig.invariants, &mut literal)
+                .parse(input)?
+                .0;
+            input = collect(
+                h.just.1,
+                &mut justice_len,
+                &mut terminated(usize, eol_or_eof),
+            )
+            .parse(input)?
+            .0;
 
             // justice
             let justice_elements = justice_len.iter().sum();
@@ -503,7 +528,7 @@ where
             for &n in &justice_len {
                 aig.justice.push_vec();
                 for _ in 0..n {
-                    let (inp, (span, lit)) = ascii::literal(h.vars)(input)?;
+                    let (inp, (span, lit)) = ascii::literal(h.vars).parse(input)?;
                     (input, _) = eol_or_eof(inp)?;
                     just_spans.push(span);
                     aig.justice.push_element(Literal(lit.0));
@@ -512,17 +537,18 @@ where
 
             // fairness
             let mut fair_spans = Vec::with_capacity(h.fair.1);
-            input =
-                collect_pair(h.fair.1, &mut fair_spans, &mut aig.fairness, &mut literal)(input)?.0;
+            input = collect_pair(h.fair.1, &mut fair_spans, &mut aig.fairness, &mut literal)
+                .parse(input)?
+                .0;
 
             // and gates
             let mut and_gate_spans = Vec::with_capacity(h.and.1);
             for i in 0..h.and.1 {
-                let (inp, (lit_span, lit)) = ascii::literal(h.vars)(input)?;
+                let (inp, (lit_span, lit)) = ascii::literal(h.vars).parse(input)?;
                 let (inp, _) = space1(inp)?;
-                let (inp, (in1_span, in1)) = ascii::literal(h.vars)(inp)?;
+                let (inp, (in1_span, in1)) = ascii::literal(h.vars).parse(inp)?;
                 let (inp, _) = space1(inp)?;
-                let (inp, (in2_span, in2)) = ascii::literal(h.vars)(inp)?;
+                let (inp, (in2_span, in2)) = ascii::literal(h.vars).parse(inp)?;
                 input = eol_or_eof(inp)?.0;
 
                 if lit.negative() {
@@ -585,10 +611,10 @@ where
         }
 
         // symbol table
-        let (input, ()) = ascii::symbol_table(&h, &mut circuit.inputs, &mut aig)(input)?;
+        let (input, ()) = ascii::symbol_table(&h, &mut circuit.inputs, &mut aig).parse(input)?;
 
         // optional comment section
-        let (input, _) = alt((preceded(tag("c"), rest), eof))(input)?;
+        let (input, _) = alt((preceded(tag("c"), rest), eof)).parse(input)?;
 
         if h.binary.1 {
             // collect he map for binary mode at the very end since it cannot fail
@@ -614,6 +640,7 @@ mod tests {
     use crate::tv_bitvec::TVBitVec;
     use crate::util::test::OPTS_NO_ORDER;
     use crate::{Circuit, Literal, Problem, ProblemDetails, VarSet, Vec2d};
+    use nom::Parser;
 
     use super::{usize_7bit, AIGERDetails};
 
@@ -776,9 +803,9 @@ mod tests {
     }
 
     fn test_aag_aig_match(aag: &[u8], aig: &[u8], expected: Problem) {
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aag).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aag).unwrap();
         assert_eq!(problem, expected, "aag does not match expected");
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aig).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aig).unwrap();
         assert_eq!(problem, expected, "aig does not match expected");
     }
 
@@ -879,7 +906,7 @@ mod tests {
             o0 s\n\
             o1 c\n\
             c\nhalf adder\n";
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aag).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aag).unwrap();
 
         let map = vec![
             Literal::FALSE,
@@ -917,7 +944,7 @@ mod tests {
             o0 s\n\
             o1 c\n\
             c\nhalf adder\n";
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aig).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aig).unwrap();
 
         let expected =
             Problem::new_aig(VarSet::with_names(vec![Some("x".into()), Some("y".into())]))
@@ -965,7 +992,7 @@ mod tests {
             o1 ~q\n\
             l0 q\n\
             c foobar\n";
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aag).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aag).unwrap();
 
         let mut expected = Problem::new_aig(VarSet::with_names(vec![
             Some("toggle".into()),
@@ -999,7 +1026,7 @@ mod tests {
             \x03\x04\
             \x01\x02\
             \x02\x08";
-        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER)(aig).unwrap();
+        let (_, problem) = super::parse::<()>(&OPTS_NO_ORDER).parse(aig).unwrap();
 
         let expected = Problem::new_aig(VarSet::new(2))
             .with_latches([Literal::from_gate(false, 3)])

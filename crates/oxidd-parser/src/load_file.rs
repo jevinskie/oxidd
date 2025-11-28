@@ -9,9 +9,9 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use codespan_reporting::files::SimpleFile;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::{StandardStream, WriteColor};
-use codespan_reporting::term::{emit, Config};
+use codespan_reporting::term::{emit_to_write_style, Config};
 use nom::error::{ContextError, ErrorKind, FromExternalError, ParseError};
-use nom::Offset;
+use nom::{Offset, Parser};
 
 use crate::ParseOptions;
 use crate::Problem;
@@ -110,9 +110,9 @@ pub fn parse<S: AsRef<str> + Clone + fmt::Display>(
     config: &Config,
 ) -> Option<Problem> {
     let parse_result = match file_type {
-        FileType::DIMACS => dimacs::parse::<ParserReport<_>>(parse_options)(input),
-        FileType::NNF => nnf::parse::<ParserReport<_>>(parse_options)(input),
-        FileType::AIGER => aiger::parse::<ParserReport<_>>(parse_options)(input),
+        FileType::DIMACS => dimacs::parse::<ParserReport<_>>(parse_options).parse(input),
+        FileType::NNF => nnf::parse::<ParserReport<_>>(parse_options).parse(input),
+        FileType::AIGER => aiger::parse::<ParserReport<_>>(parse_options).parse(input),
     };
     let errors = match parse_result {
         Ok((rest, problem)) => {
@@ -156,7 +156,7 @@ pub fn parse<S: AsRef<str> + Clone + fmt::Display>(
         .with_labels(labels);
 
     let file = SimpleFile::new(file_id, String::from_utf8_lossy(input));
-    emit(writer, config, &file, &diagnostic).ok();
+    emit_to_write_style(writer, config, &file, &diagnostic).ok();
 
     None
 }

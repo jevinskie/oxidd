@@ -15,4 +15,4 @@ rust-version.workspace = true
 [dependencies]
 oxidd-core.workspace = true
 
-rayon = "1.10"
+rayon = "1.11"

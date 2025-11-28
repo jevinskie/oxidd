@@ -14,7 +14,7 @@ use nom::combinator::{consumed, cut, eof, value};
 use nom::error::{context, ContextError, FromExternalError, ParseError};
 use nom::multi::many0_count;
 use nom::sequence::{preceded, terminated};
-use nom::{IResult, Offset};
+use nom::{IResult, Offset, Parser};
 use rustc_hash::FxHashSet;
 
 use crate::util::{
@@ -32,21 +32,23 @@ fn problem_line<'a, E: ParseError<&'a [u8]> + ContextError<&'a [u8]>>(
         let (input, _) = context(
             "all lines in the preamble must begin with 'c' or 'nnf'",
             cut(tag("nnf")),
-        )(input)?;
+        )
+        .parse(input)?;
         let (input, _) = space1(input)?;
-        let (input, num_nodes) = consumed(usize)(input)?;
+        let (input, num_nodes) = consumed(usize).parse(input)?;
         let (input, _) = space1(input)?;
-        let (input, num_edges) = consumed(usize)(input)?;
+        let (input, num_edges) = consumed(usize).parse(input)?;
         let (input, _) = space1(input)?;
-        let (input, num_inputs) = consumed(usize)(input)?;
-        value([num_nodes, num_edges, num_inputs], line_ending)(input)
+        let (input, num_inputs) = consumed(usize).parse(input)?;
+        value([num_nodes, num_edges, num_inputs], line_ending).parse(input)
     };
 
     context_loc(
         || line_span(input),
         "problem line must have format 'nnf <#nodes> <#edges> <#inputs>'",
         cut(inner),
-    )(input)
+    )
+    .parse(input)
 }
 
 /// Parses the preamble, i.e., all `c` and `nnf` lines at the beginning of the
@@ -76,11 +78,11 @@ where
             let mut name_set: FxHashSet<&str> = Default::default();
 
             loop {
-                let next_input = match preceded(char::<_, E>('c'), space1)(input) {
+                let next_input = match preceded(char::<_, E>('c'), space1).parse(input) {
                     Ok((i, _)) => i,
                     Err(_) => break,
                 };
-                if let Ok((next_input, _)) = preceded(tag("vo"), space1::<_, E>)(next_input) {
+                if let Ok((next_input, _)) = preceded(tag("vo"), space1::<_, E>).parse(next_input) {
                     // variable order tree
                     if vars.order_tree.is_some() {
                         let msg = "variable order tree may only be given once";
@@ -88,7 +90,7 @@ where
                     }
                     let t: Tree<Var>;
                     (input, (t, tree_max_var)) =
-                        terminated(util::tree(true, true), eol)(next_input)?;
+                        terminated(util::tree(true, true), eol).parse(next_input)?;
 
                     // The variable order tree takes precedence (and determines the linear order)
                     vars.order.clear();
@@ -189,7 +191,7 @@ where
             vars.check_valid();
             Ok((next_input, (vars, sizes)))
         } else {
-            let (input, sizes) = preceded(many0_count(util::comment), problem_line)(input)?;
+            let (input, sizes) = preceded(many0_count(util::comment), problem_line).parse(input)?;
             let [_, _, (_, num_vars)] = sizes;
             Ok((input, (VarSet::new(num_vars), sizes)))
         }
@@ -206,7 +208,7 @@ where
 
     move |input| {
         let (mut input, (vars, [num_nodes, num_edges, num_inputs])) =
-            preamble(parse_var_orders)(input)?;
+            preamble(parse_var_orders).parse(input)?;
 
         if num_nodes.1 == 0 {
             return fail(num_nodes.0, "NNF must have at least one node");
@@ -227,13 +229,13 @@ where
                     } else {
                         GateKind::And
                     };
-                    let (mut inp, children) = preceded(space1, u64)(inp)?;
+                    let (mut inp, children) = preceded(space1, u64).parse(inp)?;
                     if children == 0 {
                         (inp, kind.empty_gate())
                     } else {
                         let l = circuit.push_gate(kind);
                         for _ in 0..children {
-                            let (i, child) = preceded(space1, consumed(u64))(inp)?;
+                            let (i, child) = preceded(space1, consumed(u64)).parse(inp)?;
                             inp = i;
 
                             if child.1 >= num_nodes.1 as u64 {
@@ -252,7 +254,7 @@ where
                     }
                 }
                 [b'O' | b'o', inp @ ..] => {
-                    let (inp, conflict) = preceded(space1, consumed(u64))(inp)?;
+                    let (inp, conflict) = preceded(space1, consumed(u64)).parse(inp)?;
                     if conflict.1 > num_inputs.1 as u64 {
                         return fail_with_contexts([
                             (conflict.0, "invalid variable"),
@@ -260,7 +262,7 @@ where
                         ]);
                     }
 
-                    let (mut inp, children) = preceded(space1, consumed(u64))(inp)?;
+                    let (mut inp, children) = preceded(space1, consumed(u64)).parse(inp)?;
 
                     if conflict.1 != 0 && children.1 != 2 {
                         return fail_with_contexts([
@@ -274,7 +276,7 @@ where
                     } else {
                         let l = circuit.push_gate(GateKind::Or);
                         for _ in 0..children.1 {
-                            let (i, child) = preceded(space1, consumed(u64))(inp)?;
+                            let (i, child) = preceded(space1, consumed(u64)).parse(inp)?;
                             inp = i;
 
                             if child.1 >= num_nodes.1 as u64 {
@@ -290,7 +292,7 @@ where
                     }
                 }
                 [b'L' | b'l', inp @ ..] => {
-                    let (inp, lit) = preceded(space1, consumed(i64))(inp)?;
+                    let (inp, lit) = preceded(space1, consumed(i64)).parse(inp)?;
                     let var = lit.1.unsigned_abs();
                     if var == 0 || var > num_inputs.1 as u64 {
                         return fail_with_contexts([
@@ -308,10 +310,10 @@ where
                 }
             };
             nodes.push(l);
-            input = preceded(space0, line_ending)(inp)?.0;
+            input = preceded(space0, line_ending).parse(inp)?.0;
         }
 
-        let (input, _) = preceded(multispace0, eof)(input)?;
+        let (input, _) = preceded(multispace0, eof).parse(input)?;
 
         for l in circuit.gates.all_elements_mut() {
             *l = nodes[l.0];
@@ -361,7 +363,7 @@ mod tests {
             A 2 12 9\n\
             O 4 2 13 7\n";
 
-        let (input, problem) = parse::<()>(&OPTS_NO_ORDER)(input).finish().unwrap();
+        let (input, problem) = parse::<()>(&OPTS_NO_ORDER).parse(input).finish().unwrap();
         assert!(input.is_empty());
 
         let (circuit, root) = unwrap_problem(problem);

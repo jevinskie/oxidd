@@ -23,8 +23,8 @@ parking_lot = "0.12"
 crossbeam-utils = { version = "0.8", default-features = false }
 
 # standard derive macros but with custom bounds on generics
-derive-where = "1.5"
+derive-where = "1.6"
 
 [target.'cfg(all(not(miri), target_os = "linux"))'.dependencies]
 # `madvise`
-libc = { version = "0.2.153", default-features = false }
+libc = { version = "0.2.177", default-features = false }

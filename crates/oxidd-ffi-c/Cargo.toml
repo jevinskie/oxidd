@@ -28,13 +28,13 @@ oxidd = { workspace = true, features = ["bdd", "bcdd", "zbdd"] }
 #
 # Note that there is a performance regression with 2.0, see
 # https://github.com/rust-lang/rustc-hash/issues/45
-rustc-hash = "1.1"
+rustc-hash = "2.1"
 
 # `malloc`
-libc = "0.2.174"
+libc = "0.2.177"
 
 [build-dependencies]
-cc = { version = "1.2.27", optional = true }
+cc = { version = "1.2.47", optional = true }
 
 
 [features]
