@@ -34,11 +34,6 @@ where
             Ok(c) => c,
             Err(_) => return fail(input, "bad pla"),
         };
-        println!(
-            "cvr: {}",
-            cvr.to_pla_string(espresso_logic::CoverType::FD)
-                .expect("fd to string")
-        );
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
         let ilb = Vec::from_iter(cvr.input_labels().iter().map(move |l| l.as_ref()));
@@ -83,10 +78,7 @@ where
         }
 
         let sum = circt.push_gate(GateKind::Or);
-        println!("sum: {}", sum);
         circt.push_gate_inputs(implicants);
-
-        println!("final circt:\n{:#?}", circt);
 
         Ok((
             &[],
