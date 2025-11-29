@@ -57,7 +57,11 @@ where
                 vs.set_name(ni + i, olb[i]);
             }
         }
+
         let mut circt = Circuit::new(vs);
+        // let root = circt.push_gate(GateKind::Or);
+        let mut terms: Vec<Var> = vec![];
+
         for mt in cvr.cubes() {
             circt.push_gate(GateKind::And);
             println!("mt: {:#?}", mt);
@@ -66,13 +70,14 @@ where
                 Some(false) => Literal::FALSE,
                 None => Literal::UNDEF,
             }));
+            println!("ins: {:#?}", ins);
 
             for ib in mt.inputs() {
                 match ib {
-                    Some(true) => (),
+                    Some(true) => terms.push(3),
                     Some(false) => (),
                     None => (),
-                }
+                };
             }
             for ob in mt.outputs() {
                 if *ob {
@@ -82,8 +87,6 @@ where
                 }
             }
         }
-
-        let root = circt.push_gate(GateKind::Or);
 
         Ok((
             input,
