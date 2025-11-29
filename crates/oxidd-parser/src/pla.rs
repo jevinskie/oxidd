@@ -62,7 +62,48 @@ where
         let mut circt = Circuit::new(vs);
         // let root = circt.push_gate(GateKind::Or);
         let mut terms: Vec<Var> = vec![];
-        println!("FALSE: {} {} {} TRUE: {} {} {}", Literal::FALSE, Literal::FALSE.0, Literal::FALSE.0 >> Literal::VAR_LSB, Literal::TRUE, Literal::TRUE.0, Literal::TRUE.0 >> Literal::VAR_LSB);
+        println!(
+            "FALSE: {} {} {} TRUE: {} {} {}",
+            Literal::FALSE,
+            Literal::FALSE.0,
+            Literal::FALSE.0 >> Literal::VAR_LSB,
+            Literal::TRUE,
+            Literal::TRUE.0,
+            Literal::TRUE.0 >> Literal::VAR_LSB
+        );
+
+        println!(
+            "Literal::TRUE.is_negative(): {}",
+            Literal::TRUE.is_negative()
+        );
+        println!(
+            "Literal::TRUE.is_positive(): {}",
+            Literal::TRUE.is_positive()
+        );
+        println!(
+            "Literal::FALSE.is_negative(): {}",
+            Literal::FALSE.is_negative()
+        );
+        println!(
+            "Literal::FALSE.is_positive(): {}",
+            Literal::FALSE.is_positive()
+        );
+        println!(
+            "Literal::FALSE < Literal::TRUE: {}",
+            Literal::FALSE < Literal::TRUE
+        );
+        println!(
+            "Literal::TRUE.is_negative(): {}",
+            Literal::TRUE.is_negative()
+        );
+        println!(
+            "Literal::TRUE < Literal::from_input(false, 0): {}",
+            Literal::TRUE < Literal::from_input(false, 0)
+        );
+        println!(
+            "Literal::TRUE < Literal::from_gate(false, 0): {}",
+            Literal::TRUE < Literal::from_gate(false, 0)
+        );
 
         for mt in cvr.cubes() {
             circt.push_gate(GateKind::And);
