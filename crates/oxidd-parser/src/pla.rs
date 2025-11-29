@@ -8,10 +8,12 @@ use std::io::Error;
 use std::result::Result;
 
 use espresso_logic::{Cover, PLAReader, PLAWriter};
-use nom::combinator::fail;
 use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
 use nom::IResult;
 
+use crate::util::{
+    self, context_loc, eol, fail, fail_with_contexts, line_span, usize, word_span, MAX_CAPACITY,
+};
 use crate::{
     Circuit, GateKind, Literal, ParseOptions, Problem, ProblemDetails, Tree, Var, VarSet, Vec2d,
 };
@@ -24,23 +26,31 @@ where
     move |input| {
         let pla_str = match str::from_utf8(input) {
             Ok(s) => s,
-            Err(e) => {
-                return Err(nom::Err::Failure(ParseError::from_error_kind(
-                    input,
-                    ErrorKind::Fail,
-                )))
-            }
+            Err(e) => return fail(input, "bad utf8"),
         };
         let cvr = match Cover::from_pla_string(pla_str) {
             Ok(c) => c,
-            Err(e) => {
-                return Err(nom::Err::Failure(ParseError::from_error_kind(
-                    input,
-                    ErrorKind::Fail,
-                )))
-            }
+            Err(e) => return fail(input, "bad pla"),
         };
-        println!("cvr: {}", cvr.to_pla_string(espresso_logic::CoverType::FD).expect("fd to string"));
+        println!(
+            "cvr: {}",
+            cvr.to_pla_string(espresso_logic::CoverType::FD)
+                .expect("fd to string")
+        );
+        let ni = cvr.num_inputs();
+        let no = cvr.num_outputs();
+        let ilb = cvr.input_labels();
+        let c = Circuit::new(VarSet::new(ni));
+        for i in cvr.cubes() {
+            println!("i: {:#?}", i);
+            for ib in i.inputs() {
+                match ib {
+                    Some(true) => (),
+                    Some(false) => (),
+                    None => (),
+                }
+            }
+        }
 
         Ok((
             input,
