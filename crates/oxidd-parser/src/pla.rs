@@ -130,6 +130,7 @@ mod tests {
         assert_eq!(inputs.len(), 4);
         assert!(inputs.order().is_none());
 
+        #[rustfmt::skip]
         let nodes = &[
             g(0), v(0), v(1),
             g(1), v(0), v(2),
