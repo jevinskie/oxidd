@@ -6,6 +6,7 @@
 
 use std::io::Error;
 use std::result::Result;
+use std::sync::Arc;
 
 use espresso_logic::{Cover, PLAReader, PLAWriter};
 use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
@@ -39,8 +40,11 @@ where
         );
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
-        let ilb = cvr.input_labels();
+        let ilb = Vec::from_iter(cvr.input_labels().iter().map(move |l| l.as_ref()));
         let mut circt = Circuit::new(VarSet::new(ni));
+        for i in 0..ni {
+            ()
+        }
         for mt in cvr.cubes() {
             circt.push_gate(GateKind::And);
             println!("mt: {:#?}", mt);
