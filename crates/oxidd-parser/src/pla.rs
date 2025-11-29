@@ -41,10 +41,23 @@ where
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
         let ilb = Vec::from_iter(cvr.input_labels().iter().map(move |l| l.as_ref()));
-        let mut circt = Circuit::new(VarSet::new(ni));
-        for i in 0..ni {
-            ()
+        println!("ilb init: {:#?}", ilb);
+        let olb = Vec::from_iter(cvr.output_labels().iter().map(move |l| l.as_ref()));
+        println!("olb init: {:#?}", olb);
+        let mut vs = VarSet::new(ni + no);
+        if ilb.len() > 0 {
+            assert!(ilb.len() == ni);
+            for i in 0..ni {
+                vs.set_name(i, ilb[i]);
+            }
         }
+        if olb.len() > 0 {
+            assert!(olb.len() == no);
+            for i in 0..no {
+                vs.set_name(ni + i, olb[i]);
+            }
+        }
+        let mut circt = Circuit::new(vs);
         for mt in cvr.cubes() {
             circt.push_gate(GateKind::And);
             println!("mt: {:#?}", mt);
