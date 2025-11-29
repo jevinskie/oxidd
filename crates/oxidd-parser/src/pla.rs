@@ -62,13 +62,14 @@ where
         let mut circt = Circuit::new(vs);
         // let root = circt.push_gate(GateKind::Or);
         let mut terms: Vec<Var> = vec![];
+        println!("FALSE: {} {} {} TRUE: {} {} {}", Literal::FALSE, Literal::FALSE.0, Literal::FALSE.0 >> Literal::VAR_LSB, Literal::TRUE, Literal::TRUE.0, Literal::TRUE.0 >> Literal::VAR_LSB);
 
         for mt in cvr.cubes() {
             circt.push_gate(GateKind::And);
             println!("mt: {:#?}", mt);
             let ins = Vec::from_iter(mt.inputs().iter().map(|ib| match ib {
                 Some(true) => Literal::TRUE,
-                Some(false) => Literal::FALSE,
+                Some(false) => Literal::TRUE,
                 None => Literal::UNDEF,
             }));
             println!("ins: {:#?}", ins);
@@ -78,8 +79,10 @@ where
                 .iter()
                 .enumerate()
                 .filter_map(|(i, ib)| match ib {
-                    Some(true) => Some(Literal::from_input(false, 1 + i)),
-                    Some(false) => Some(Literal::from_input(true, 1 + i)),
+                    // Some(true) => Some(Literal::from_input(false, 1 + i)),
+                    // Some(false) => Some(Literal::from_input(true, 1 + i)),
+                    Some(true) => Some(Literal::FALSE),
+                    Some(false) => Some(Literal::FALSE),
                     None => None,
                 })
                 .collect();
@@ -89,7 +92,7 @@ where
                 .iter()
                 .map(|ob| match ob {
                     true => Literal::TRUE,
-                    false => Literal::FALSE,
+                    false => Literal::TRUE,
                 })
                 .collect();
             println!(
