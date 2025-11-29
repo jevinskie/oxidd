@@ -78,8 +78,8 @@ where
                 .iter()
                 .enumerate()
                 .filter_map(|(i, ib)| match ib {
-                    Some(true) => Some(Literal::from_input(false, i)),
-                    Some(false) => Some(Literal::from_input(true, i)),
+                    Some(true) => Some(Literal::from_input(false, 1 + i)),
+                    Some(false) => Some(Literal::from_input(true, 1 + i)),
                     None => None,
                 })
                 .collect();
@@ -87,12 +87,15 @@ where
             let mt_out_lits: Vec<Literal> = mt
                 .outputs()
                 .iter()
-                .enumerate()
-                .map(|(i, ib)| match ib {
-                    true => Literal::from_input(false, ni + i),
-                    false => Literal::from_input(true, ni + i),
+                .map(|ob| match ob {
+                    true => Literal::TRUE,
+                    false => Literal::FALSE,
                 })
                 .collect();
+            println!(
+                "mt_in_lits:\n{:#?}\nmt_out_lits:\n{:#?}",
+                mt_in_lits, mt_out_lits
+            );
         }
 
         Ok((
@@ -124,7 +127,7 @@ mod tests {
             .ob MAJ\n\
             .p 4\n\
             11-- 1\n\
-            1-1- 1\n\
+            1-1- 0\n\
             1--1 1\n\
             -111 1\n\
             .e\n";
