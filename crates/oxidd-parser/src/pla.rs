@@ -40,9 +40,16 @@ where
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
         let ilb = cvr.input_labels();
-        let circt = Circuit::new(VarSet::new(ni));
+        let mut circt = Circuit::new(VarSet::new(ni));
         for mt in cvr.cubes() {
+            circt.push_gate(GateKind::And);
             println!("mt: {:#?}", mt);
+            let ins = Vec::from_iter(mt.inputs().iter().map(|ib| match ib {
+                Some(true) => Literal::TRUE,
+                Some(false) => Literal::FALSE,
+                None => Literal::UNDEF,
+            }));
+
             for ib in mt.inputs() {
                 match ib {
                     Some(true) => (),
@@ -51,18 +58,18 @@ where
                 }
             }
             for ob in mt.outputs() {
-               if *ob {
-                println!("ob 1");
-               } else {
-                println!("ob 0");
-               }
+                if *ob {
+                    println!("ob 1");
+                } else {
+                    println!("ob 0");
+                }
             }
         }
 
         Ok((
             input,
             Problem {
-                circuit: Circuit::new(VarSet::new(0)),
+                circuit: circt,
                 details: crate::ProblemDetails::Root(Literal::UNDEF),
             },
         ))
