@@ -282,20 +282,20 @@ impl fmt::Display for Literal {
         let (kind, i) = if self.0 & (1 << Self::GATE_BIT) != 0 {
             ('g', i)
         } else {
-            if *self == Literal::TRUE {
-                ('T', 243)
-            } else if *self == Literal::FALSE {
-                ('F', 245)
-            } else {
-                ('i', i - 1)
+            // if *self == Literal::TRUE {
+            //     ('T', 243)
+            // } else if *self == Literal::FALSE {
+            //     ('F', 245)
+            // } else {
+            //     ('i', i - 1)
+            // }
+            if i == 0 {
+                return f.write_char(if self.is_positive() { '⊤' } else { '⊥' });
             }
-            // if i == 0 {
-            //     return f.write_char(if self.is_positive() { '⊤' } else { '⊥' });
-            // }
-            // if i == Literal::MAX_INPUT + 2 {
-            //     return f.write_str(if self.is_positive() { "+U" } else { "-U" });
-            // }
-            // ('i', i - 1)
+            if i == Literal::MAX_INPUT + 2 {
+                return f.write_str(if self.is_positive() { "+U" } else { "-U" });
+            }
+            ('i', i - 1)
         };
 
         let sign = if self.is_positive() { '+' } else { '-' };
