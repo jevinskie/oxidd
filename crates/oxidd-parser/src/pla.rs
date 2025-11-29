@@ -66,6 +66,8 @@ where
             }
         }
 
+        let root = circt.push_gate(GateKind::Or);
+
         Ok((
             input,
             Problem {
