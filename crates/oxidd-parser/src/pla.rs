@@ -40,15 +40,22 @@ where
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
         let ilb = cvr.input_labels();
-        let c = Circuit::new(VarSet::new(ni));
-        for i in cvr.cubes() {
-            println!("i: {:#?}", i);
-            for ib in i.inputs() {
+        let circt = Circuit::new(VarSet::new(ni));
+        for mt in cvr.cubes() {
+            println!("mt: {:#?}", mt);
+            for ib in mt.inputs() {
                 match ib {
                     Some(true) => (),
                     Some(false) => (),
                     None => (),
                 }
+            }
+            for ob in mt.outputs() {
+               if *ob {
+                println!("ob 1");
+               } else {
+                println!("ob 0");
+               }
             }
         }
 
