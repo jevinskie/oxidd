@@ -9,8 +9,8 @@ use std::result::Result;
 
 use espresso_logic::{Cover, PLAReader};
 use nom::combinator::fail;
-use nom::error::{context, ContextError, FromExternalError, ParseError};
-use nom::{Err, IResult};
+use nom::error::{ErrorKind, context, ContextError, FromExternalError, ParseError};
+use nom::IResult;
 
 use crate::{
     Circuit, GateKind, Literal, ParseOptions, Problem, ProblemDetails, Tree, Var, VarSet, Vec2d,
@@ -31,10 +31,14 @@ where
         //     let rdr = Cover::from_pla_string(pla_str);
         // Err(Err::Error(E::from_char(input, 's')))
 
-        match str::from_utf8(input) {
+        let pla_str = match str::from_utf8(input) {
             Ok(s) => s,
-            Err(e) => return Err(e),
+            Err(e) => return Err(nom::Err::Failure(ParseError::from_error_kind(input, ErrorKind::Fail))),
         };
+        // let cvr = match Cover::from_pla_string(pla_str) {
+        //     Ok(c) => c,
+        //     Err(e) => return Err(nom::Err::Failure(ContextError::add_context(input, "Cover::from_string failed", e))),
+        // }
 
         // let pla_str = match str::from_utf8(input) {
         //     Ok(s) => s,
@@ -48,14 +52,6 @@ where
                 details: crate::ProblemDetails::Root(Literal::UNDEF),
             },
         ))
-
-        // Ok((
-        //     input,
-        //     Problem {
-        //         circuit: Circuit::new(VarSet::new(0)),
-        //         details: crate::ProblemDetails::Root(Literal::UNDEF),
-        //     },
-        // ))
     }
 }
 
