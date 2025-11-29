@@ -13,7 +13,8 @@ use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError
 use nom::IResult;
 
 use crate::util::{
-    self, context_loc, eol, fail, fail_with_contexts, line_span, usize, word_span, MAX_CAPACITY,
+    self, collect, context_loc, eol, fail, fail_with_contexts, line_span, usize, word_span,
+    MAX_CAPACITY,
 };
 use crate::{
     Circuit, GateKind, Literal, ParseOptions, Problem, ProblemDetails, Tree, Var, VarSet, Vec2d,
@@ -72,20 +73,26 @@ where
             }));
             println!("ins: {:#?}", ins);
 
-            for ib in mt.inputs() {
-                match ib {
-                    Some(true) => terms.push(3),
-                    Some(false) => (),
-                    None => (),
-                };
-            }
-            for ob in mt.outputs() {
-                if *ob {
-                    println!("ob 1");
-                } else {
-                    println!("ob 0");
-                }
-            }
+            let mt_in_lits: Vec<Literal> = mt
+                .inputs()
+                .iter()
+                .enumerate()
+                .filter_map(|(i, ib)| match ib {
+                    Some(true) => Some(Literal::from_input(false, i)),
+                    Some(false) => Some(Literal::from_input(true, i)),
+                    None => None,
+                })
+                .collect();
+
+            let mt_out_lits: Vec<Literal> = mt
+                .outputs()
+                .iter()
+                .enumerate()
+                .map(|(i, ib)| match ib {
+                    true => Literal::from_input(false, ni + i),
+                    false => Literal::from_input(true, ni + i),
+                })
+                .collect();
         }
 
         Ok((
