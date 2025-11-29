@@ -7,9 +7,9 @@
 use std::io::Error;
 use std::result::Result;
 
-use espresso_logic::{Cover, PLAReader};
+use espresso_logic::{Cover, PLAReader, PLAWriter};
 use nom::combinator::fail;
-use nom::error::{ErrorKind, context, ContextError, FromExternalError, ParseError};
+use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
 use nom::IResult;
 
 use crate::{
@@ -21,29 +21,26 @@ pub fn parse<'a, E>(options: &ParseOptions) -> impl FnMut(&'a [u8]) -> IResult<&
 where
     E: ParseError<&'a [u8]> + ContextError<&'a [u8]> + FromExternalError<&'a [u8], String>,
 {
-    // return ParseError::from_char(input, "d");
     move |input| {
-        //     // let pla_str = str::from_utf8(input)?;
-        //     let pla_str = match str::from_utf8(input) {
-        //         Ok(s) => s,
-        //         Err(e) => return Err::Error(""),
-        //     };
-        //     let rdr = Cover::from_pla_string(pla_str);
-        // Err(Err::Error(E::from_char(input, 's')))
-
         let pla_str = match str::from_utf8(input) {
             Ok(s) => s,
-            Err(e) => return Err(nom::Err::Failure(ParseError::from_error_kind(input, ErrorKind::Fail))),
+            Err(e) => {
+                return Err(nom::Err::Failure(ParseError::from_error_kind(
+                    input,
+                    ErrorKind::Fail,
+                )))
+            }
         };
-        // let cvr = match Cover::from_pla_string(pla_str) {
-        //     Ok(c) => c,
-        //     Err(e) => return Err(nom::Err::Failure(ContextError::add_context(input, "Cover::from_string failed", e))),
-        // }
-
-        // let pla_str = match str::from_utf8(input) {
-        //     Ok(s) => s,
-        //     Err(e) => return Err(Err::Failure()),
-        // };
+        let cvr = match Cover::from_pla_string(pla_str) {
+            Ok(c) => c,
+            Err(e) => {
+                return Err(nom::Err::Failure(ParseError::from_error_kind(
+                    input,
+                    ErrorKind::Fail,
+                )))
+            }
+        };
+        println!("cvr: {}", cvr.to_pla_string(espresso_logic::CoverType::FD).expect("fd to string"));
 
         Ok((
             input,
