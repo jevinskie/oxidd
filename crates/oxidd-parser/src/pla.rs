@@ -28,11 +28,11 @@ where
     move |input| {
         let pla_str = match str::from_utf8(input) {
             Ok(s) => s,
-            Err(e) => return fail(input, "bad utf8"),
+            Err(_) => return fail(input, "bad utf8"),
         };
         let cvr = match Cover::from_pla_string(pla_str) {
             Ok(c) => c,
-            Err(e) => return fail(input, "bad pla"),
+            Err(_) => return fail(input, "bad pla"),
         };
         println!(
             "cvr: {}",
@@ -42,111 +42,57 @@ where
         let ni = cvr.num_inputs();
         let no = cvr.num_outputs();
         let ilb = Vec::from_iter(cvr.input_labels().iter().map(move |l| l.as_ref()));
-        println!("ilb init: {:#?}", ilb);
         let olb = Vec::from_iter(cvr.output_labels().iter().map(move |l| l.as_ref()));
-        println!("olb init: {:#?}", olb);
-        let mut vs = VarSet::new(ni + no);
+        let mut vs = VarSet::new(ni);
         if ilb.len() > 0 {
             assert!(ilb.len() == ni);
             for i in 0..ni {
                 vs.set_name(i, ilb[i]);
             }
         }
-        if olb.len() > 0 {
-            assert!(olb.len() == no);
-            for i in 0..no {
-                vs.set_name(ni + i, olb[i]);
-            }
-        }
 
         let mut circt = Circuit::new(vs);
-        // let root = circt.push_gate(GateKind::Or);
-        let mut terms: Vec<Var> = vec![];
-        println!(
-            "FALSE: {} {} {} TRUE: {} {} {}",
-            Literal::FALSE,
-            Literal::FALSE.0,
-            Literal::FALSE.0 >> Literal::VAR_LSB,
-            Literal::TRUE,
-            Literal::TRUE.0,
-            Literal::TRUE.0 >> Literal::VAR_LSB
-        );
 
-        println!(
-            "Literal::TRUE.is_negative(): {}",
-            Literal::TRUE.is_negative()
-        );
-        println!(
-            "Literal::TRUE.is_positive(): {}",
-            Literal::TRUE.is_positive()
-        );
-        println!(
-            "Literal::FALSE.is_negative(): {}",
-            Literal::FALSE.is_negative()
-        );
-        println!(
-            "Literal::FALSE.is_positive(): {}",
-            Literal::FALSE.is_positive()
-        );
-        println!(
-            "Literal::FALSE < Literal::TRUE: {}",
-            Literal::FALSE < Literal::TRUE
-        );
-        println!(
-            "Literal::TRUE.is_negative(): {}",
-            Literal::TRUE.is_negative()
-        );
-        println!(
-            "Literal::TRUE < Literal::from_input(false, 0): {}",
-            Literal::TRUE < Literal::from_input(false, 0)
-        );
-        println!(
-            "Literal::TRUE < Literal::from_gate(false, 0): {}",
-            Literal::TRUE < Literal::from_gate(false, 0)
-        );
+        let mut implicants: Vec<Literal> = vec![];
 
         for mt in cvr.cubes() {
-            circt.push_gate(GateKind::And);
-            println!("mt: {:#?}", mt);
-            let ins = Vec::from_iter(mt.inputs().iter().map(|ib| match ib {
-                Some(true) => Literal::TRUE,
-                Some(false) => Literal::TRUE,
-                None => Literal::UNDEF,
-            }));
-            println!("ins: {:#?}", ins);
+            let prod = circt.push_gate(GateKind::And);
+            implicants.push(prod);
 
             let mt_in_lits: Vec<Literal> = mt
                 .inputs()
                 .iter()
                 .enumerate()
                 .filter_map(|(i, ib)| match ib {
-                    // Some(true) => Some(Literal::from_input(false, 1 + i)),
-                    // Some(false) => Some(Literal::from_input(true, 1 + i)),
-                    Some(true) => Some(Literal::FALSE),
-                    Some(false) => Some(Literal::FALSE),
+                    Some(true) => Some(Literal::from_input(false, i)),
+                    Some(false) => Some(Literal::from_input(true, i)),
                     None => None,
                 })
                 .collect();
+            circt.push_gate_inputs(mt_in_lits);
 
-            let mt_out_lits: Vec<Literal> = mt
-                .outputs()
-                .iter()
-                .map(|ob| match ob {
-                    true => Literal::TRUE,
-                    false => Literal::TRUE,
-                })
-                .collect();
-            println!(
-                "mt_in_lits:\n{:#?}\nmt_out_lits:\n{:#?}",
-                mt_in_lits, mt_out_lits
-            );
+            // TODO: Multibit output
+            // let mt_out_lits: Vec<Literal> = mt
+            //     .outputs()
+            //     .iter()
+            //     .map(|ob| match ob {
+            //         true => Literal::TRUE,
+            //         false => Literal::FALSE,
+            //     })
+            //     .collect();
         }
 
+        let sum = circt.push_gate(GateKind::Or);
+        println!("sum: {}", sum);
+        circt.push_gate_inputs(implicants);
+
+        println!("final circt:\n{:#?}", circt);
+
         Ok((
-            input,
+            &[],
             Problem {
                 circuit: circt,
-                details: crate::ProblemDetails::Root(Literal::UNDEF),
+                details: crate::ProblemDetails::Root(sum),
             },
         ))
     }
@@ -171,47 +117,34 @@ mod tests {
             .ob MAJ\n\
             .p 4\n\
             11-- 1\n\
-            1-1- 0\n\
+            1-1- 1\n\
             1--1 1\n\
             -111 1\n\
             .e\n";
 
         let (input, problem) = parse::<()>(&OPTS_NO_ORDER).parse(input).finish().unwrap();
-        // assert!(input.is_empty());
+        assert!(input.is_empty());
 
         let (circuit, root) = unwrap_problem(problem);
         let inputs = circuit.inputs();
         assert_eq!(inputs.len(), 4);
-        // assert!(inputs.order().is_none());
+        assert!(inputs.order().is_none());
 
         let nodes = &[
-            !v(2), // L -3
-            !v(1), // L -2
-            v(0),  // L 1
-            g(0),  // A 3 2 1 0
-            v(2),  // L 3
-            g(1),  // O 3 2 4 3
-            !v(3), // L -4
-            g(2),  // A 2 6 5
-            v(3),  // L 4
-            g(3),  // A 2 2 8
-            g(4),  // A 2 1 4
-            v(1),  // L 2
-            g(5),  // O 2 2 11 10
-            g(6),  // A 2 12 9
-            g(7),  // O 4 2 13 7
+            g(0), v(0), v(1),
+            g(1), v(0), v(2),
+            g(2), v(0), v(3),
+            g(3), v(1), v(2), v(3),
+            g(4),
         ];
         assert_eq!(root, *nodes.last().unwrap());
 
         for (i, &gate) in [
-            Gate::and(&[nodes[2], nodes[1], nodes[0]]), // 0: A 3 2 1 0
-            Gate::or(&[nodes[4], nodes[3]]),            // 1: O 3 2 4 3
-            Gate::and(&[nodes[6], nodes[5]]),           // 2: A 2 6 5
-            Gate::and(&[nodes[2], nodes[8]]),           // 3: A 2 2 8
-            Gate::and(&[nodes[1], nodes[4]]),           // 4: A 2 1 4
-            Gate::or(&[nodes[11], nodes[10]]),          // 5: O 2 2 11 10
-            Gate::and(&[nodes[12], nodes[9]]),          // 6: A 2 12 9
-            Gate::or(&[nodes[13], nodes[7]]),           // 7: O 4 2 13 7
+            Gate::and(&[nodes[1], nodes[2]]),
+            Gate::and(&[nodes[4], nodes[5]]),
+            Gate::and(&[nodes[7], nodes[8]]),
+            Gate::and(&[nodes[10], nodes[11], nodes[12]]),
+            Gate::or(&[nodes[0], nodes[3], nodes[6], nodes[9]]),
         ]
         .iter()
         .enumerate()
