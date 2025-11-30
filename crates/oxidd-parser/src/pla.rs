@@ -4,24 +4,18 @@
 
 // spell-checker:ignore multispace
 
-use std::io::Error;
-use std::result::Result;
-use std::sync::Arc;
 
-use espresso_logic::{Cover, PLAReader, PLAWriter};
-use nom::error::{context, ContextError, ErrorKind, FromExternalError, ParseError};
+use espresso_logic::{Cover, PLAReader};
+use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::IResult;
 
-use crate::util::{
-    self, collect, context_loc, eol, fail, fail_with_contexts, line_span, usize, word_span,
-    MAX_CAPACITY,
-};
+use crate::util::fail;
 use crate::{
-    Circuit, GateKind, Literal, ParseOptions, Problem, ProblemDetails, Tree, Var, VarSet, Vec2d,
+    Circuit, GateKind, Literal, ParseOptions, Problem, VarSet,
 };
 
 /// Parse a PLA file
-pub fn parse<'a, E>(options: &ParseOptions) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Problem, E>
+pub fn parse<'a, E>(_options: &ParseOptions) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Problem, E>
 where
     E: ParseError<&'a [u8]> + ContextError<&'a [u8]> + FromExternalError<&'a [u8], String>,
 {
@@ -35,9 +29,9 @@ where
             Err(_) => return fail(input, "bad pla"),
         };
         let ni = cvr.num_inputs();
-        let no = cvr.num_outputs();
+        let _no = cvr.num_outputs();
         let ilb = Vec::from_iter(cvr.input_labels().iter().map(move |l| l.as_ref()));
-        let olb = Vec::from_iter(cvr.output_labels().iter().map(move |l| l.as_ref()));
+        let _olb = Vec::from_iter(cvr.output_labels().iter().map(move |l| l.as_ref()));
         let mut vs = VarSet::new(ni);
         if ilb.len() > 0 {
             assert!(ilb.len() == ni);
