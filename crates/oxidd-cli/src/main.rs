@@ -12,7 +12,9 @@ use std::time::{Duration, Instant};
 use clap::{Parser, ValueEnum};
 use num_bigint::BigUint;
 use oxidd::util::SatCountCache;
-use oxidd::{BooleanFunction, HasLevel, HasWorkers, Manager, ManagerRef, VarNo, WorkerPool};
+use oxidd::{
+    BooleanFunction, HasLevel, HasWorkers, Manager, ManagerRef, TVLFunction, VarNo, WorkerPool,
+};
 use oxidd_core::function::{ETagOfFunc, INodeOfFunc, TermOfFunc};
 use oxidd_core::util::VarNameMap;
 use oxidd_core::{ApplyCache, HasApplyCache};
@@ -137,6 +139,8 @@ enum DDType {
     BCDD,
     /// Zero-suppressed decision diagram
     ZBDD,
+    // /// Ternary decision diagram
+    // TBDD,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, ValueEnum)]
@@ -657,6 +661,15 @@ fn main() {
             mref.clone()
                 .workers()
                 .install(move || bool_dd_main::<oxidd::zbdd::ZBDDFunction, _>(&cli, mref))
-        }
+        } // DDType::TBDD => {
+          //     let mref = oxidd::tdd::new_manager(
+          //         inner_node_capacity,
+          //         cli.apply_cache_capacity,
+          //         cli.threads,
+          //     );
+          //     mref.clone()
+          //         .workers()
+          //         .install(move || bool_dd_main::<oxidd::tdd::TDDFunction, _>(&cli, mref))
+          // }
     }
 }

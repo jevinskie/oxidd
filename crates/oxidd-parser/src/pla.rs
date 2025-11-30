@@ -4,18 +4,17 @@
 
 // spell-checker:ignore multispace
 
-
 use espresso_logic::{Cover, PLAReader};
 use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::IResult;
 
 use crate::util::fail;
-use crate::{
-    Circuit, GateKind, Literal, ParseOptions, Problem, VarSet,
-};
+use crate::{Circuit, GateKind, Literal, ParseOptions, Problem, VarSet};
 
 /// Parse a PLA file
-pub fn parse<'a, E>(_options: &ParseOptions) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Problem, E>
+pub fn parse<'a, E>(
+    _options: &ParseOptions,
+) -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], Problem, E>
 where
     E: ParseError<&'a [u8]> + ContextError<&'a [u8]> + FromExternalError<&'a [u8], String>,
 {
