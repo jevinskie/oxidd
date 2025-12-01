@@ -13,9 +13,9 @@ impl StructField {
     fn gen_from_inner(&self, inner: TokenStream) -> TokenStream {
         let ident = &self.ident;
         if self.named {
-            quote!(Self { #ident: #inner })
+            quote! { Self{ #ident: #inner } }
         } else {
-            quote!(Self(#inner))
+            quote! { Self(#inner) }
         }
     }
 
