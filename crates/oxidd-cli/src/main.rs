@@ -390,6 +390,7 @@ where
             }
             let count = manager.num_inner_nodes();
             println!("node count: {count}");
+            manager.apply_cache().print_stats();
         })
     };
 

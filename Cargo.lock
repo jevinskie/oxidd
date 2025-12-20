@@ -853,6 +853,7 @@ dependencies = [
  "csv",
  "num-bigint",
  "oxidd",
+ "oxidd-cache",
  "oxidd-core",
  "oxidd-dump",
  "oxidd-parser",

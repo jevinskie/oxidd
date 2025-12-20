@@ -11,6 +11,8 @@ use parking_lot::lock_api::RawMutex;
 use oxidd_core::util::{Borrowed, DropWith};
 use oxidd_core::{ApplyCache, Edge, Manager, ManagerEventSubscriber};
 
+use crate::StatisticsGenerator;
+
 #[cfg(feature = "hugealloc")]
 type Box<T> = allocator_api2::boxed::Box<T, hugealloc::HugeAlloc>;
 #[cfg(feature = "hugealloc")]
@@ -317,7 +319,9 @@ where
     O: Copy + Eq,
 {
     #[cfg(not(feature = "statistics"))]
-    fn print_stats(&self) {}
+    fn print_stats(&self) {
+        eprintln!("dissss");
+    }
 
     #[cfg(feature = "statistics")]
     fn print_stats(&self) {
@@ -382,6 +386,11 @@ where
         for entry in &*self.0 {
             entry.lock().clear();
         }
+    }
+
+    fn print_stats(&self) {
+        eprintln!("durrr");
+        StatisticsGenerator::print_stats(self);
     }
 }
 

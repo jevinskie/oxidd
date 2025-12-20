@@ -91,7 +91,7 @@ where
 
             let print_lock = PROGRESS.print_lock.lock();
             let inner_nodes = mref.with_manager_shared(|manager| {
-                //manager.apply_cache().print_stats();
+                // manager.apply_cache().print_stats();
                 manager.approx_num_inner_nodes()
             });
 

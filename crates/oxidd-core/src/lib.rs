@@ -1169,6 +1169,9 @@ pub trait ApplyCache<M: Manager, O: Copy>: DropWith<M::Edge> {
 
     /// Remove all entries from the cache
     fn clear(&self, manager: &M);
+
+    /// Print the cache stats to stderr;
+    fn print_stats(&self);
 }
 
 /// Apply cache container

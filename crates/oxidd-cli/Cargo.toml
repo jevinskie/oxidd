@@ -16,6 +16,7 @@ rust-version.workspace = true
 
 [dependencies]
 oxidd = { workspace = true, features = ["bdd", "bcdd", "tdd", "zbdd", "dddmp", "dot-export"] }
+oxidd-cache.workspace = true
 oxidd-core.workspace = true
 oxidd-dump.workspace = true
 oxidd-reorder.workspace = true

@@ -84,4 +84,9 @@ impl<M: Manager, O: Copy, const ARITY: usize> oxidd_core::ApplyCache<M, O>
     fn clear(&self, _manager: &M) {
         // Nothing to do
     }
+
+    #[inline(always)]
+    fn print_stats(&self) {
+        eprintln!("[no stats NoApplyCache]");
+    }
 }
