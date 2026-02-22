@@ -29,7 +29,7 @@ codespan-reporting = { version = "0.13", optional = true }
 fixedbitset = "0.5.7"
 
 # bump allocator
-bumpalo = { version = "3.19.0", features = ["boxed", "collections"] }
+bumpalo = { version = "3.20.2", features = ["boxed", "collections"] }
 
 # fast hash function
 #

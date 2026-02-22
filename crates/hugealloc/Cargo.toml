@@ -10,10 +10,10 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-allocator-api2 = { version = "0.3", default-features = false }
+allocator-api2 = { version = "0.4", default-features = false }
 
 sptr = "0.3"
 
 [target.'cfg(all(any(target_family = "unix", target_family = "windows"), not(miri)))'.dependencies]
 # `mmap`, `madvise`
-libc = { version = "0.2.177", default-features = false }
+libc = { version = "0.2.182", default-features = false }
